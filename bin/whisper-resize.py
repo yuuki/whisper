@@ -14,6 +14,11 @@ try:
 except ImportError:
   raise SystemExit('[ERROR] Please make sure whisper is installed properly')
 
+if whisper.CAN_LOCK:
+  whisper.LOCK = True
+else:
+  raise SystemExit('[ERROR] cannot lock')
+
 # Ignore SIGPIPE
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
