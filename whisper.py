@@ -42,7 +42,7 @@ except ImportError:
 
 fallocate = None
 
-if CAN_FALLOCATE: 
+if CAN_FALLOCATE:
   libc_name = ctypes.util.find_library('c')
   libc = ctypes.CDLL(libc_name)
   c_off64_t = ctypes.c_int64
@@ -748,6 +748,9 @@ Returns None if no data can be returned
       fh.close()
 
 def file_fetch(fh, fromTime, untilTime, now = None):
+  if LOCK:
+    fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
+
   header = __readHeader(fh)
   if now is None:
     now = int( time.time() )
