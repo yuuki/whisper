@@ -72,6 +72,7 @@ if CAN_FALLOCATE:
 LOCK = False
 CACHE_HEADERS = False
 AUTOFLUSH = False
+WRITE_PAGE_CACHE = True
 __headerCache = {}
 
 longFormat = "!L"
@@ -175,6 +176,14 @@ class CorruptWhisperFile(WhisperException):
 
   def __str__(self):
     return "%s (%s)" % (self.error, self.path)
+
+def file_open(path, mode):
+  flags = os.O_RDWR
+  if not WRITE_PAGE_CACHE:
+    flags = flags | os.O_DIRECT
+  fd = os.open(path, flags)
+  fh = os.fdopen(fd, mode)
+  return fh
 
 def enableDebug():
   global open, debug, startBlock, endBlock
@@ -379,9 +388,10 @@ aggregationMethod specifies the function to use when propagating data (see ``whi
   #Looks good, now we create the file and write the header
   if os.path.exists(path):
     raise InvalidConfiguration("File %s already exists!" % path)
+
   fh = None
   try:
-    fh = open(path,'wb')
+    fh = file_open(path, 'wb')
     if LOCK:
       fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
 
@@ -531,7 +541,7 @@ timestamp is either an int or float
   value = float(value)
   fh = None
   try:
-    fh = open(path,'r+b')
+    fh = file_open(path, 'r+b')
     return file_update(fh, value, timestamp)
   finally:
     if fh:
@@ -600,7 +610,7 @@ points is a list of (timestamp,value) points
   points.sort(key=lambda p: p[0],reverse=True) #order points by timestamp, newest first
   fh = None
   try:
-    fh = open(path,'r+b')
+    fh = file_open(path, 'r+b')
     return file_update_many(fh, points)
   finally:
     if fh:
