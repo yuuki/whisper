@@ -742,6 +742,8 @@ Returns None if no data can be returned
   fh = None
   try:
     fh = open(path,'rb')
+    if LOCK:
+        fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
     return file_fetch(fh, fromTime, untilTime, now)
   finally:
     if fh:
