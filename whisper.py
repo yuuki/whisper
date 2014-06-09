@@ -177,8 +177,8 @@ class CorruptWhisperFile(WhisperException):
   def __str__(self):
     return "%s (%s)" % (self.error, self.path)
 
-def file_open(path, mode):
-  flags = os.O_RDWR
+def file_open(path, mode, is_create=0):
+  flags = (os.O_RDWR | os.O_CREAT) if is_create else os.O_RDWR
   if not WRITE_PAGE_CACHE:
     flags = flags | os.O_DIRECT
   fd = os.open(path, flags)
@@ -391,7 +391,7 @@ aggregationMethod specifies the function to use when propagating data (see ``whi
 
   fh = None
   try:
-    fh = file_open(path, 'wb')
+    fh = file_open(path, 'wb', 1)
     if LOCK:
       fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
 
