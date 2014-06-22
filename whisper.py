@@ -25,7 +25,7 @@
 #		Archive = Point+
 #			Point = timestamp,value
 
-import os, struct, time, operator, itertools
+import os, struct, time, operator, itertools, ftools
 
 try:
   import fcntl
@@ -72,6 +72,7 @@ if CAN_FALLOCATE:
 LOCK = False
 CACHE_HEADERS = False
 AUTOFLUSH = False
+EFFECTIVE_PAGE_CACHING = False
 __headerCache = {}
 
 longFormat = "!L"
@@ -610,6 +611,8 @@ points is a list of (timestamp,value) points
 def file_update_many(fh, points):
   if LOCK:
     fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
+  if EFFECTIVE_PAGE_CACHING:
+    ftools.fadvise(fh.fileno(), mode="POSIX_FADV_DONTNEED")
 
   header = __readHeader(fh)
   now = int( time.time() )
