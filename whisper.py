@@ -612,7 +612,7 @@ def file_update_many(fh, points):
   if LOCK:
     fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
   if EFFECTIVE_PAGE_CACHING:
-    ftools.fadvise(fd.fileno(),mode="POSIX_FADV_DONTNEED")
+    ftools.fadvise(fh.fileno(), mode="POSIX_FADV_DONTNEED")
 
   header = __readHeader(fh)
   now = int( time.time() )
