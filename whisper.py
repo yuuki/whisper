@@ -516,6 +516,9 @@ def __propagate(fh,header,timestamp,higher,lower):
       fh.seek(lowerOffset)
       fh.write(myPackedPoint)
 
+    if EFFECTIVE_PAGE_CACHING:
+      ftools.fadvise(fh.fileno(), offset=lowerOffset, length=pointSize, mode="POSIX_FADV_DONTNEED")
+
     return True
 
   else:
@@ -611,8 +614,9 @@ points is a list of (timestamp,value) points
 def file_update_many(fh, points):
   if LOCK:
     fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
+
   if EFFECTIVE_PAGE_CACHING:
-    ftools.fadvise(fh.fileno(), mode="POSIX_FADV_DONTNEED")
+    ftools.fadvise(fh.fileno(), mode="POSIX_FADV_RANDOM")
 
   header = __readHeader(fh)
   now = int( time.time() )
@@ -642,6 +646,9 @@ def file_update_many(fh, points):
   if currentArchive and currentPoints: #don't forget to commit after we've checked all the archives
     currentPoints.reverse()
     __archive_update_many(fh,header,currentArchive,currentPoints)
+
+  if EFFECTIVE_PAGE_CACHING:
+    ftools.fadvise(fh.fileno(), offset=header['archives'][0]['offset'], mode="POSIX_FADV_DONTNEED")
 
   if AUTOFLUSH:
     fh.flush()
