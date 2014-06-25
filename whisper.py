@@ -516,9 +516,6 @@ def __propagate(fh,header,timestamp,higher,lower):
       fh.seek(lowerOffset)
       fh.write(myPackedPoint)
 
-    if EFFECTIVE_PAGE_CACHING:
-      ftools.fadvise(fh.fileno(), offset=lowerOffset, length=pointSize, mode="POSIX_FADV_DONTNEED")
-
     return True
 
   else:
