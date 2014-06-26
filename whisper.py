@@ -713,7 +713,7 @@ def __archive_update_many(fh,header,archive,points):
         propagateFurther = True
 
     if EFFECTIVE_PAGE_CACHING:
-      ftools.fadvise(fh.fileno(), offset=lower['offset']+pointSize, length=lower['size'], mode="POSIX_FADV_DONTNEED")
+      ftools.fadvise(fh.fileno(), offset=lower['offset']+pointSize, length=lower['size']-pointSize, mode="POSIX_FADV_DONTNEED")
 
     if not propagateFurther:
       break
