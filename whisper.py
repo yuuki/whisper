@@ -644,9 +644,6 @@ def file_update_many(fh, points):
     currentPoints.reverse()
     __archive_update_many(fh,header,currentArchive,currentPoints)
 
-  if EFFECTIVE_PAGE_CACHING:
-    ftools.fadvise(fh.fileno(), offset=header['archives'][0]['offset'], mode="POSIX_FADV_DONTNEED")
-
   if AUTOFLUSH:
     fh.flush()
     os.fsync(fh.fileno())
@@ -715,10 +712,12 @@ def __archive_update_many(fh,header,archive,points):
       if __propagate(fh, header, interval, higher, lower):
         propagateFurther = True
 
+    if EFFECTIVE_PAGE_CACHING:
+      ftools.fadvise(fh.fileno(), offset=lower['offset']+pointSize, length=lower['size'], mode="POSIX_FADV_DONTNEED")
+
     if not propagateFurther:
       break
     higher = lower
-
 
 def info(path):
   """info(path)
