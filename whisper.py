@@ -37,8 +37,10 @@ try:
   import ctypes
   import ctypes.util
   CAN_FALLOCATE = True
+  CAN_FADVISE = True
 except ImportError:
   CAN_FALLOCATE = False
+  CAN_FADVISE = False
 
 fallocate = None
 
@@ -68,6 +70,17 @@ if CAN_FALLOCATE:
     fallocate = _py_fallocate
   del libc
   del libc_name
+
+if CAN_FADVISE
+  libc_name = ctypes.util.find_library('c')
+  libc = ctypes.CDLL(libc_name)
+  PAGE_SIZE = libc.getpagesize()
+
+  def PAGE_START(addr):
+    return ((addr) & (~(PAGE_SIZE - 1)))
+  def NEXT_PAGE_START(addr):
+    return PAGE_START(addr) + PAGE_SIZE
+
 
 LOCK = False
 CACHE_HEADERS = False
@@ -144,7 +157,6 @@ def parseRetentionDef(retentionDef):
       raise ValueError("Invalid retention specification '%s'" % points)
 
   return (precision, points)
-
 
 class WhisperException(Exception):
     """Base class for whisper exceptions."""
@@ -475,6 +487,12 @@ def __propagate(fh,header,timestamp,higher,lower):
     fh.seek(higher['offset'])
     seriesString += fh.read(higherLastOffset - higher['offset'])
 
+    if EFFECTIVE_PAGE_CACHING:
+      dontneedStart = NEXT_PAGE_START(higherFirstOffset)
+      dontneedEnd = PAGE_START(higherEnd - higherFirstOffset) - dontneedStart
+      if dontneedEnd > 0:
+        ftools.fadvise(fh.fileno(), offset=dontneedStart, length=dontneedEnd - dontneedStart, mode="POSIX_FADV_DONTNEED")
+
   #Now we unpack the series data we just read
   byteOrder,pointTypes = pointFormat[0],pointFormat[1:]
   points = len(seriesString) / pointSize
@@ -711,9 +729,6 @@ def __archive_update_many(fh,header,archive,points):
     for interval in uniqueLowerIntervals:
       if __propagate(fh, header, interval, higher, lower):
         propagateFurther = True
-
-    if EFFECTIVE_PAGE_CACHING:
-      ftools.fadvise(fh.fileno(), offset=lower['offset']+pointSize, length=lower['size']-pointSize, mode="POSIX_FADV_DONTNEED")
 
     if not propagateFurther:
       break
