@@ -24,7 +24,7 @@
 #		Archive = Point+
 #			Point = timestamp,value
 
-import os, struct, time, operator, itertools
+import os, struct, time, operator, itertools, mmap
 
 try:
   import fcntl
@@ -508,14 +508,15 @@ timestamp is either an int or float
 """
   value = float(value)
   fh = open(path,'r+b')
-  return file_update(fh, value, timestamp)
+  map = mmap.mmap(fh.fileno(), 0)
+  return file_update(fh, map, value, timestamp)
 
 
-def file_update(fh, value, timestamp):
+def file_update(fh, map, value, timestamp):
   if LOCK:
     fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
 
-  header = __readHeader(fh)
+  header = __readHeader(map)
   now = int( time.time() )
   if timestamp is None:
     timestamp = now
@@ -534,32 +535,31 @@ def file_update(fh, value, timestamp):
   #First we update the highest-precision archive
   myInterval = timestamp - (timestamp % archive['secondsPerPoint'])
   myPackedPoint = struct.pack(pointFormat,myInterval,value)
-  fh.seek(archive['offset'])
-  packedPoint = fh.read(pointSize)
+  map.seek(archive['offset'])
+  packedPoint = map.read(pointSize)
   (baseInterval,baseValue) = struct.unpack(pointFormat,packedPoint)
 
   if baseInterval == 0: #This file's first update
-    fh.seek(archive['offset'])
-    fh.write(myPackedPoint)
+    map.seek(archive['offset'])
+    map.write(myPackedPoint)
     baseInterval,baseValue = myInterval,value
   else: #Not our first update
     timeDistance = myInterval - baseInterval
     pointDistance = timeDistance / archive['secondsPerPoint']
     byteDistance = pointDistance * pointSize
     myOffset = archive['offset'] + (byteDistance % archive['size'])
-    fh.seek(myOffset)
-    fh.write(myPackedPoint)
+    map.seek(myOffset)
+    map.write(myPackedPoint)
 
   #Now we propagate the update to lower-precision archives
   higher = archive
   for lower in lowerArchives:
-    if not __propagate(fh, header, myInterval, higher, lower):
+    if not __propagate(map, header, myInterval, higher, lower):
       break
     higher = lower
 
   if AUTOFLUSH:
-    fh.flush()
-    os.fsync(fh.fileno())
+    map.flush()
 
   fh.close()
 
@@ -574,14 +574,15 @@ points is a list of (timestamp,value) points
   points = [ (int(t),float(v)) for (t,v) in points]
   points.sort(key=lambda p: p[0],reverse=True) #order points by timestamp, newest first
   fh = open(path,'r+b')
-  return file_update_many(fh, points)
+  map = mmap.mmap(fh.fileno(), 0)
+  return file_update_many(fh, map, points)
 
 
-def file_update_many(fh, points):
+def file_update_many(fh, map, points):
   if LOCK:
     fcntl.flock( fh.fileno(), fcntl.LOCK_EX )
 
-  header = __readHeader(fh)
+  header = __readHeader(map)
   now = int( time.time() )
   archives = iter( header['archives'] )
   currentArchive = archives.next()
@@ -593,7 +594,7 @@ def file_update_many(fh, points):
     while currentArchive['retention'] < age: #we can't fit any more points in this archive
       if currentPoints: #commit all the points we've found that it can fit
         currentPoints.reverse() #put points in chronological order
-        __archive_update_many(fh,header,currentArchive,currentPoints)
+        __archive_update_many(map,header,currentArchive,currentPoints)
         currentPoints = []
       try:
         currentArchive = archives.next()
@@ -608,11 +609,10 @@ def file_update_many(fh, points):
 
   if currentArchive and currentPoints: #don't forget to commit after we've checked all the archives
     currentPoints.reverse()
-    __archive_update_many(fh,header,currentArchive,currentPoints)
+    __archive_update_many(map,header,currentArchive,currentPoints)
 
   if AUTOFLUSH:
-    fh.flush()
-    os.fsync(fh.fileno())
+    map.flush()
 
   fh.close()
 
