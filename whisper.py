@@ -73,7 +73,7 @@ if CAN_FALLOCATE:
 LOCK = False
 CACHE_HEADERS = False
 AUTOFLUSH = False
-FADVICE_RANDOM = False
+FADVICE_RANDOM = True
 __headerCache = {}
 
 longFormat = "!L"
